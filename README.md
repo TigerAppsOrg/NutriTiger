@@ -79,6 +79,12 @@ To tag a branch
 - ``git tag archive/prototype prototype``
 - ``git push --tags``
 
+### Cronjob/scraping script Guidelines
+
+The scraping script can be found in ``src/menuscript.py``. You can run it with the following command:
+
+- ``python src/menuscript.py``
+
 ### Database Guidelines
 The db files (under src) require a mongodb username and password with read and write access to connect to the database. This information was previously shared to you.
 
