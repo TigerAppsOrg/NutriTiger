@@ -85,6 +85,7 @@ The scraping script can be found in ``src/menuscript.py``. You can run it with t
 
 - ``python src/menuscript.py``
 
+
 ### Database Guidelines
 The db files (under src) require a mongodb username and password with read and write access to connect to the database. This information was previously shared to you.
 
