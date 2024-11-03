@@ -117,7 +117,7 @@ def parse_nutritional_info(api_response):
         # Initialize a dictionary to store the information for each food item
         food_info = {
             "recipeid": 'usda-' + str(food.get("fdcId")),
-            "mealname": meal_name,  # Use the description as meal name
+            "mealname": meal_name.title(),  # Use the description as meal name
             "servingSize": formatted_serving_size,  # Format the serving size
             "ingredients": food.get("ingredients", "No ingredients listed")  # Get ingredients if available
         }

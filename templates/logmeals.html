@@ -979,13 +979,14 @@ function setup() {
                                     title: 'Our data has changed since you first loaded the site, reload and try again!',
                                     text: response.message,
                                     icon: 'warning',
-                                    confirmButtonText: 'Refresh'
+                                    confirmButtonText: 'Refresh',
+                                    allowOutsideClick: false // Prevents clicking outside to close
                                 }).then((willRefresh) => {
                                     if (willRefresh.isConfirmed) {
                                         showLoadingAnimation();
-                                        location.reload(); // Refresh the page if confirmed
+                                        location.reload(true); // Force reload if confirmed
                                     }
-                                });
+});
                             }
                         },
                         error: function (xhr, status, error) {
@@ -997,10 +998,11 @@ function setup() {
             .catch(() => {
                 console.log("We should be having sweet alert");
                 Swal.fire({
-                    title: 'Error with sending nutrition data.',
-                    text: 'Please check your data and try again.',
+                    title: 'Error with sending nutrition data',
+                    text: 'Please try again!',
                     icon: 'warning',
-                    confirmButtonText: 'Refresh'
+                    confirmButtonText: 'Refresh',
+
                 }).then(function(){ 
                     location.reload();
                 });

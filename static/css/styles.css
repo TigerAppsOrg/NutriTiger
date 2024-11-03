@@ -399,7 +399,7 @@ body {
 /* for hmenu.html */
 .nt-activated {
     color:#000000!important;
-    font-weight:500;
+    font-weight:bold;
 }
 .nt-color-menu {
     background-color: #FFF4E9;
