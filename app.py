@@ -24,6 +24,7 @@ import requests
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+import hashlib
 
 #--------------------------------------------------------------------
 
@@ -376,74 +377,18 @@ def settings():
 
 #--------------------------------------------------------------------
 def usda_validation(nutrition_data):
-    dotenv.load_dotenv()
-    api_key = os.getenv('usda_api_key')  # API key
-    api_url = f"https://api.nal.usda.gov/fdc/v1/foods?api_key={api_key}"
-
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    try:
-        # Removes "usda-" prepending and stores all nutrition info into a list
-        for item in nutrition_data:
-            item["recipeid"] = item["recipeid"][5:]
-            item["calories"] = float(item["calories"])
-            item["proteins"] = float(item["proteins"])
-            item["carbs"] = float(item["carbs"])
-            item["fats"] = float(item["fats"])
-        recipe_ids = [item["recipeid"] for item in nutrition_data]
-        recipe_ids = [item["recipeid"] for item in nutrition_data]
-
-        data = {
-            "fdcIds": recipe_ids
-        }
-        response = requests.post(api_url, headers=headers, json=data)
-        response.raise_for_status()  # This will raise an HTTPError if the response was unsuccessful
-        usda_data = response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error: Failed to fetch USDA data: {str(e)}")
-        return jsonify({'error': f'Failed to fetch USDA data: {str(e)}'}), 400
-
-    usda_data_dict = {item['fdcId']: item for item in usda_data}
-
-    def get_nutrient_value(nutrients, nutrient_name):
-        nutrient = next((n for n in nutrients if n['nutrient']['name'] == nutrient_name), None)
-        return nutrient['amount'] if nutrient else None
-
+    # Removes "usda-" prepending and stores all nutrition info into a string
     for item in nutrition_data:
-        usda_item = usda_data_dict.get(int(item['recipeid']))
-        if not usda_item:
-            print(f"Error: Invalid USDA food ID {item['recipeid']}")
-            return jsonify({'error': f"Invalid USDA food ID {item['recipeid']}"}), 400
-
-        formatted_serving_size = "100g" if None in (usda_item.get('servingSize'), usda_item.get('servingSizeUnit')) else f"{round(int(usda_item.get('servingSize')))} {usda_item.get('servingSizeUnit')}"
-
-        expected_data = {
-            "mealname": usda_item.get('description'),
-            "servingsize": formatted_serving_size,  # Assuming default serving size
-            "calories": get_nutrient_value(usda_item['foodNutrients'], 'Energy'),
-            "proteins": get_nutrient_value(usda_item['foodNutrients'], 'Protein'),
-            "carbs": get_nutrient_value(usda_item['foodNutrients'], 'Carbohydrate, by difference'),
-            "fats": get_nutrient_value(usda_item['foodNutrients'], 'Total lipid (fat)'),
-        }
-
-        print(expected_data)
-        print(item)
-        print(item['mealname'])
-        print(item['servingsize'])
-        print(item['calories'])
-        print(item['proteins'])
-        print(item['carbs'])
-        print(item['fats'])
-
-        # Compare received data with USDA data
-        if (item['mealname'] != expected_data['mealname'] or
-            item['servingsize'] != expected_data['servingsize'] or
-            item['calories'] != expected_data['calories'] or
-            item['proteins'] != expected_data['proteins'] or
-            item['carbs'] != expected_data['carbs'] or
-            item['fats'] != expected_data['fats']):
+        data_str = ""
+        data_str += item["recipeid"][5:]
+        data_str += str(item["calories"])
+        data_str += str(item["proteins"])
+        data_str += str(item["carbs"])
+        data_str += str(item["fats"])
+        sha256 = hashlib.sha256()
+        sha256.update(data_str.encode('utf-8'))
+        string_hash = sha256.hexdigest()
+        if string_hash != item["signature"]:
             print("Error: Data tampering detected!")
             return jsonify({'error': 'Data tampering detected!'}), 400
 
@@ -458,7 +403,7 @@ def add_usda_nutrition():
         try:
             data = request.get_json()
             if not data:
-                print("Error: No data provided.")
+                print("No USDA data provided.")
                 return jsonify({'error': 'No data provided'}), 400
 
             new_data = data.get("nutritionData")
@@ -598,6 +543,8 @@ def logmeals_element():
     carbs = request.args.get('carbs', type = float)
     fats = request.args.get('fats', type = float)
     usda = request.args.get('usda', type = str)
+    signature = request.args.get('signature', type = str)
+
     uniqueid = checkid[8:]
     if mealtime == "N/A":
         details = location
@@ -606,7 +553,7 @@ def logmeals_element():
 
     html_code = render_template('logmeals_element.html', checkid=checkid, uniqueid=uniqueid, mealname=mealname, 
                                 recid=recid, location=location, mealtime=mealtime, servingsize=servingsize, 
-                                cals=cals, prots=prots, carbs=carbs, fats=fats, usda = usda, details=details)
+                                cals=cals, prots=prots, carbs=carbs, fats=fats, usda = usda, details=details, signature=signature)
     return make_response(html_code)
 
 @app.route('/logmeals/data', methods=['GET'])
@@ -821,4 +768,4 @@ def logoutcas():
 #--------------------------------------------------------------------
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=55557, debug=True)
+    app.run(host='localhost', port=55557, debug=True)

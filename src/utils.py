@@ -6,7 +6,7 @@
 import datetime
 import pytz
 import re
-
+import hashlib
 
 def time_of_day(date, time):
     lunch_start = datetime.time(11, 0)
@@ -137,6 +137,23 @@ def parse_nutritional_info(api_response):
                 # Map the nutrient value to the corresponding key in food_info
                 food_info[nutrients_map[nutrient_name]] = round(int(nutrient.get("value")))
         
+        # Create a string from the specified data to hash
+        data_str = (
+            food_info["recipeid"][5:] + 
+            str(food_info.get("calories", 0)) + 
+            str(food_info.get("proteins", 0)) + 
+            str(food_info.get("carbs", 0)) + 
+            str(food_info.get("fats", 0))
+        )
+        
+        # Generate the SHA-256 hash
+        sha256 = hashlib.sha256()
+        sha256.update(data_str.encode('utf-8'))
+        string_hash = sha256.hexdigest()
+        
+        # Add the hash to food_info
+        food_info["signature"] = string_hash
+
         # Append the parsed food item to the list
         foods.append(food_info)
     

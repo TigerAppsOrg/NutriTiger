@@ -176,6 +176,7 @@ function renderPage(startIndex, endIndex, data) {
         const { calories = 0, proteins = 0, carbs = 0, fats = 0, recipeid, mealname, servingSize = 'Not specified' } = food;
         const foodElement = document.createElement("div");
         foodElement.className = "form-check";
+
         foodElement.innerHTML = `
             <input type="checkbox" class="form-check-input checkbox" id="usda-checkbox-${recipeid}">
             <label class="form-check-label text-med" for="usda-checkbox-${recipeid}">${mealname}</label>
@@ -269,7 +270,7 @@ function prepareAllPages(data) {
                 console.log(food.fdcIc);
                 foodElement.innerHTML = `
                 <input type="checkbox" class="form-check-input" id="usda-checkbox-${food.recipeid}" page=${pageNum} data-usda="true" data-recid="${food.recipeid}"
-                    data-mealname="${food.mealname}" data-location="USDA FoodData Central" data-mealtime="N/A" data-servingsize="${servingSizeInfo}" data-cals="${calories}"
+                    data-mealname="${food.mealname}" data-location="USDA FoodData Central" data-mealtime="N/A" data-signature=${food.signature} data-servingsize="${servingSizeInfo}" data-cals="${calories}"
                     data-carbs="${carbs}" data-prots="${proteins}" data-fats="${fats}"
                     onchange="handleCheckboxChange(this)" oncopy="disableCopyPaste(event) onpaste="disableCopyPaste(event) oncut="disableCopyPaste(event)">
                 <label class="form-check-label" for="checkbox-${food.recipeid}">${food.mealname}</label>
@@ -380,58 +381,56 @@ function searchUSDAFood() {
         
     }
 }
-
 function addUSDANutritionData() {
-    let nutritionData = [];
+    return new Promise((resolve, reject) => {
+        let nutritionData = [];
 
-    // Collect data from all checked USDA food checkboxes
-    document.querySelectorAll(".small-input").forEach((input) => {
-        if (input.dataset.usda === "true") {
-            let foodData = {
-                recipeid: input.dataset.recid,
-                mealname: input.dataset.mealname,
-                servingsize: input.dataset.servingsize,
-                calories: parseFloat(input.dataset.cals),
-                proteins: parseFloat(input.dataset.prots),
-                carbs: parseFloat(input.dataset.carbs),
-                fats: parseFloat(input.dataset.fats),
-                source: "usda",
-            };
-            nutritionData.push(foodData);
+        // Collect data from all checked USDA food checkboxes
+        document.querySelectorAll(".small-input").forEach((input) => {
+            if (input.dataset.usda === "true") {
+                let foodData = {
+                    recipeid: input.dataset.recid,
+                    mealname: input.dataset.mealname,
+                    servingsize: input.dataset.servingsize,
+                    calories: parseFloat(input.dataset.cals),
+                    proteins: parseFloat(input.dataset.prots),
+                    carbs: parseFloat(input.dataset.carbs),
+                    fats: parseFloat(input.dataset.fats),
+                    source: "usda",
+                    signature: input.dataset.signature,
+                };
+                nutritionData.push(foodData);
+            }
+        });
+
+        // Send the data to the server if there is any
+        if (nutritionData.length > 0) {
+            showLoadingAnimation();
+            $.ajax({
+                url: "/addingnutrition", // URL to the server-side function handling the database insertion
+                type: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token() }}"
+                },
+                data: JSON.stringify({ nutritionData: nutritionData }),
+                success: function (response) {
+                    console.log("Nutrition data successfully sent and saved:", response);
+                    hideLoadingAnimation();
+                    resolve(true);
+                },
+                error: function (xhr, status, error) {
+                    console.error("Failed to send nutrition data:", error);
+                    hideLoadingAnimation();
+                    reject(false);
+                },
+            });
+        } else {
+            console.log("No USDA food items selected.");
+            resolve(true);  // Resolve even if no data is selected
         }
     });
-
-    // Send the data to the server if there is any
-    if (nutritionData.length > 0) {
-        showLoadingAnimation();
-        $.ajax({
-            url: "/addingnutrition", // URL to the server-side function handling the database insertion
-            type: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token() }}"
-            },
-            data: JSON.stringify({ nutritionData: nutritionData }),
-            success: function (response) {
-                console.log("Nutrition data successfully sent and saved:", response);
-                hideLoadingAnimation();
-            },
-            error: function (xhr, status, error) {
-                console.error("Failed to send nutrition data:", error);
-                hideLoadingAnimation();
-                Swal.fire({
-                icon: "error",
-                title: "Oops...",
-                text: "Something went wrong!",
-                footer: '<a href="#">Why do I have this issue?</a>'
-                });
-            },
-        });
-    } else {
-        console.log("No USDA food items selected or data is missing.");
-    }
 }
-
 
 // Debounce function to limit rate of invoking functions
 function debounce(func, delay) {
@@ -517,7 +516,9 @@ function handleCheckboxChange(element) {
                 `&carbs=${encodeURIComponent(element.dataset.carbs)}` +
                 `&prots=${encodeURIComponent(element.dataset.prots)}` +
                 `&fats=${encodeURIComponent(element.dataset.fats)}` +
-                `&usda=${encodeURIComponent(element.dataset.usda)}`;
+                `&usda=${encodeURIComponent(element.dataset.usda)}` +
+                `&signature=${encodeURIComponent(element.dataset.signature)}`;
+
         
         showLoadingAnimation();
         $.ajax({
@@ -911,15 +912,7 @@ function setup() {
     // submit data
     document.getElementById("submitButton").addEventListener("click", function (event) {
         event.preventDefault();
-        addUSDANutritionData();
-
-        Swal.fire({
-                icon: "error",
-                title: "Oops...",
-                text: "Something went wrong!",
-                footer: '<a href="#">Why do I have this issue?</a>'
-                });
-
+        
         // checks entry limit 
         const over_limit = $("#over_limit").data('value');
         const entry_limit = $("#entry_limit").data('value');
@@ -943,59 +936,77 @@ function setup() {
         // gray out and disable submit button
         closeForm(event);
 
-        // send data
-        var recids = [];
-        var servings = [];
-        const inputs = document.querySelectorAll(".small-input");
-        inputs.forEach((input) => {
-            let recid = input.dataset.recid;
-            let serving = parseFloat(input.value);
-            recids.push(recid);
-            servings.push(serving);
-        });
-        if (recids.length > 0) {
-            const timePageLoadedElement = document.getElementById("timePageLoaded")
-            const timePageLoaded = timePageLoadedElement.dataset.time
-            var dataToSend = {
-                entry_recids: recids,
-                entry_servings: servings,
-                entry_nutrition: entry_nutrition,
-                timePageLoaded: timePageLoaded
-            };
-            var jsonData = JSON.stringify(dataToSend);
-            showLoadingAnimation();
-            $.ajax({
-                type: "POST",
-                url: "/logmeals",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": "{{ csrf_token() }}"
-                },
-                data: jsonData,
-                success: function (response) {
-                    if (response.success && response.redirect) {
-                        window.location.href = response.redirect;
-                    }
-                    else {
-                        hideLoadingAnimation();
-                        Swal.fire({
-                            title: 'Database Has Been Changed',
-                            text: response.message,
-                            icon: 'warning',
-                            confirmButtonText: 'Refresh'
-                        }).then((willRefresh) => {
-                            if (willRefresh.isConfirmed) {
-                                showLoadingAnimation();
-                                location.reload(); // Refresh the page if confirmed
+        // Data tampering of usda nutrition
+        addUSDANutritionData()
+            .then(() => {
+                console.log("Nutrition data added successfully.");
+                // send data
+                var recids = [];
+                var servings = [];
+                const inputs = document.querySelectorAll(".small-input");
+                inputs.forEach((input) => {
+                    let recid = input.dataset.recid;
+                    let serving = parseFloat(input.value);
+                    recids.push(recid);
+                    servings.push(serving);
+                });
+                if (recids.length > 0) {
+                    const timePageLoadedElement = document.getElementById("timePageLoaded")
+                    const timePageLoaded = timePageLoadedElement.dataset.time
+                    var dataToSend = {
+                        entry_recids: recids,
+                        entry_servings: servings,
+                        entry_nutrition: entry_nutrition,
+                        timePageLoaded: timePageLoaded
+                    };
+                    var jsonData = JSON.stringify(dataToSend);
+                    showLoadingAnimation();
+                    $.ajax({
+                        type: "POST",
+                        url: "/logmeals",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": "{{ csrf_token() }}"
+                        },
+                        data: jsonData,
+                        success: function (response) {
+                            if (response.success && response.redirect) {
+                                window.location.href = response.redirect;
                             }
-                        });
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error("Error in data submission:", xhr.status, xhr.responseText);
-                },
+                            else {
+                                hideLoadingAnimation();
+                                Swal.fire({
+                                    title: 'Our data has changed since you first loaded the site, reload and try again!',
+                                    text: response.message,
+                                    icon: 'warning',
+                                    confirmButtonText: 'Refresh'
+                                }).then((willRefresh) => {
+                                    if (willRefresh.isConfirmed) {
+                                        showLoadingAnimation();
+                                        location.reload(); // Refresh the page if confirmed
+                                    }
+                                });
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error("Error in data submission:", xhr.status, xhr.responseText);
+                        },
+                    });
+                }
+            })
+            .catch(() => {
+                console.log("We should be having sweet alert");
+                Swal.fire({
+                    title: 'Error with sending nutrition data.',
+                    text: 'Please check your data and try again.',
+                    icon: 'warning',
+                    confirmButtonText: 'Refresh'
+                }).then(function(){ 
+                    location.reload();
+                });
+                return false;
             });
-        }
+        
     });
 }
 
