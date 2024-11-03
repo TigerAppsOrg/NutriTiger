@@ -18,8 +18,9 @@ def connectmongo():
     load_dotenv()
     password = os.getenv("MONGODB_PASSWORD")
     username = os.getenv("MONGODB_USERNAME")
+    url = os.getenv("MONGODB_URL")
 
-    uri = f"mongodb+srv://{username}:{password}@aws-m0-cluster.cywlmar.mongodb.net/?retryWrites=true&w=majority&appName=aws-m0-cluster"
+    uri = f"mongodb+srv://{username}:{password}@{url}"
     try:
         client = pymongo.MongoClient(uri)
     except pymongo.errors.ConfigurationError:
