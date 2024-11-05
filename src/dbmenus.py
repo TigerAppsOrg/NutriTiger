@@ -9,21 +9,25 @@ from datetime import datetime, timedelta
 # Handle menus insertion by the scraper and handles dhall menu display
 #----------------------------------------------------------------------
 
-# Delete all menu documents and nutrition documents (except custom) 
+# Delete all menu documents and nutrition documents older than three weeks (except custom) 
 # and inserts list of menu items (menu_list) to menu collection
 def update_menu(menu_list):
     with connectmongo() as client:
         db = client.db
         menu_col = db.menus
         nutri_col = db.nutrition
-        documents_to_delete = {}
+
+        # Three weeks before
+        today = datetime.today() 
+        three_weeks_before = today - timedelta(weeks=3)
+
+        documents_to_delete = {"date": {"$lte": three_weeks_before}}
 
         try:
             query_documents = menu_col.find(documents_to_delete)
-            recipeid_to_delete = []
 
-            # Deletes all nutrition documents that are not custom
-            nutri_doc_to_delete = {"access": {"$exists": False}}
+            # Deletes all nutrition documents that are not custom and older than three weeks
+            nutri_doc_to_delete = {"date": {"$lte": three_weeks_before}, "access": {"$exists": False}}
             delete_recipeid_result = nutri_col.delete_many(nutri_doc_to_delete)
             delete_result = menu_col.delete_many(documents_to_delete)
             # print(f"# of deleted documents: {delete_result.deleted_count}")
@@ -114,7 +118,7 @@ def main():
         
     ]
     emptymenu = []
-    update_menu(emptymenu)
+    update_menu(newmenu)
     
     sys.exit(0)
     
