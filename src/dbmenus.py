@@ -55,6 +55,21 @@ def update_menu(menu_list):
                 # Keep the first document and delete the rest
                 menu_col.delete_many({"_id": {"$in": doc["ids"][1:]}})
 
+            # delete all nutrition docs with identical recipeid
+            pipeline = [
+                {"$group": {
+                    "_id": "$recipeid",
+                    "ids": {"$push": "$_id"},
+                    "count": {"$sum": 1}
+                }},
+                {"$match": {"count": {"$gt": 1}}}
+            ]
+            for doc in nutri_col.aggregate(pipeline):
+                recipeid_to_delete = doc["_id"]
+                # Delete all documents with this recipeid
+                nutri_col.delete_many({"recipeid": recipeid_to_delete})
+
+            
 
             return
         except pymongo.errors.OperationFailure:
