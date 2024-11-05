@@ -38,6 +38,24 @@ def update_menu(menu_list):
             document_ids = add_result.inserted_ids
             # print(f"# of documents inserted: {str(len(document_ids))}")
             # print(f"_id of inserted documents: {document_ids}")
+
+
+            # DE-DUPLICATION: worried multiple copies might create issues with frontend, for safety
+            pipeline = [
+                {"$group": {
+                    "_id": {"date": "$date", "dhall": "$dhall", "mealtime": "$mealtime"},
+                    "ids": {"$push": "$_id"},
+                    "count": {"$sum": 1}
+                }},
+                {"$match": {"count": {"$gt": 1}}}
+            ]
+
+            # Iterate over duplicate groups and delete all but the first occurrence
+            for doc in menu_col.aggregate(pipeline):
+                # Keep the first document and delete the rest
+                menu_col.delete_many({"_id": {"$in": doc["ids"][1:]}})
+
+
             return
         except pymongo.errors.OperationFailure:
             print("An authentication error was received. Are you sure your database user is authorized to perform write operations?", file = sys.stderr)
