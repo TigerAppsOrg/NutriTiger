@@ -18,6 +18,7 @@ from src import dbusers
 from src import dbmenus
 from src import dbnutrition
 from src import utils
+from src import llm
 from src import auth
 from src import photos
 import requests
@@ -379,7 +380,8 @@ def settings():
 def usda_validation(nutrition_data):
     # Removes "usda-" prepending and stores all nutrition info into a string
     for item in nutrition_data:
-        data_str = ""
+        data_str = item["servingsize"]
+        data_str += item["mealname"]
         data_str += item["recipeid"][5:]
         data_str += str(item["calories"])
         data_str += str(item["proteins"])
@@ -589,7 +591,7 @@ def logmeals_usdadata():
         data = response.json()
 
         # Packs everything correctly
-        parsed_data = utils.parse_nutritional_info(data)
+        parsed_data = llm.parse_nutritional_info(query, data)
 
         return jsonify(parsed_data)
     except requests.exceptions.RequestException as e:
