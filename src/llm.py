@@ -1,6 +1,6 @@
-from openai import OpenAI
+# from openai import OpenAI
 import hashlib
-import os
+# import os
 
 # Organizes data --> less info to send + figure out serving size
 def parse_nutritional_info(query, api_response):
@@ -79,30 +79,30 @@ def parse_nutritional_info(query, api_response):
     # Return the list of parsed food items
     return foods
 
-def filter_parsed_data(query, data):
-    # Construct the prompt for GPT to parse rational items
-    prompt = (
-        f"Given a list of {query} items with nutritional information, "
-        "filter and return only those that are rational based on the following criteria:\n\n"
-        "- Macronutrient counts should be within reason.\n"
-        "- Ingredients should be relevant to the item.\n\n"
-        "Here is the list of items:\n\n"
-        f"{data}\n\n"
-        "Return only the rational items that fit the criteria, in the same format as a list of JSON objects."
-    )
+# def filter_parsed_data(query, data):
+#     # Construct the prompt for GPT to parse rational items
+#     prompt = (
+#         f"Given a list of {query} items with nutritional information, "
+#         "filter and return only those that are rational based on the following criteria:\n\n"
+#         "- Macronutrient counts should be within reason.\n"
+#         "- Ingredients should be relevant to the item.\n\n"
+#         "Here is the list of items:\n\n"
+#         f"{data}\n\n"
+#         "Return only the rational items that fit the criteria, in the same format as a list of JSON objects."
+#     )
 
-    client = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-    )
+#     client = OpenAI(
+#         api_key=os.getenv("OPENAI_API_KEY"),
+#     )
 
-    response = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that processes nutritional data."},
-            {"role": "user", "content": prompt}
-        ],
-        model="gpt-3.5-turbo",
-    )
+#     response = client.chat.completions.create(
+#         messages=[
+#             {"role": "system", "content": "You are a helpful assistant that processes nutritional data."},
+#             {"role": "user", "content": prompt}
+#         ],
+#         model="gpt-3.5-turbo",
+#     )
 
-    # Extract the response
-    rational_items = response.choices[0].message['content'].strip()
-    return rational_items
+#     # Extract the response
+#     rational_items = response.choices[0].message['content'].strip()
+#     return rational_items
